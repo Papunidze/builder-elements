@@ -1,0 +1,35 @@
+.left-bar {
+  width: 240px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  padding: 1rem;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.03);
+}
+
+.left-bar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.left-bar li {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.left-bar li:hover {
+  background: #f0f0f0;
+}
+
+.left-bar li:active {
+  background: #e0e0e0;
+}
+
+.left-bar.error {
+  color: #c00;
+  font-weight: bold;
+}

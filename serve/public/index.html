@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Upload and Compare</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+        background-color: #f4f4f4;
+      }
+      .container {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      input[type="file"],
+      input[type="text"] {
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: calc(100% - 20px);
+      }
+      button {
+        padding: 10px 15px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      #folderList,
+      #fileInFolderList {
+        list-style-type: none;
+        padding: 0;
+      }
+      #folderList li,
+      #fileInFolderList li {
+        background-color: #e9e9e9;
+        margin-bottom: 5px;
+        padding: 8px;
+        border-radius: 4px;
+      }
+      #folderList li:hover {
+        background-color: #d0d0d0;
+        cursor: pointer;
+      }
+      #message {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .folder-header {
+        cursor: pointer;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Upload Two .ts or .tsx Files to a Folder</h1>
+      <div>
+        <label for="folderName">Folder Name:</label>
+        <input type="text" id="folderName" placeholder="Enter folder name" />
+      </div>
+      <div>
+        <label for="fileInput1">File 1:</label>
+        <input type="file" id="fileInput1" accept=".ts,.tsx" />
+      </div>
+      <div>
+        <label for="fileInput2">File 2:</label>
+        <input type="file" id="fileInput2" accept=".ts,.tsx" />
+      </div>
+      <button onclick="uploadFiles()">Upload Files</button>
+      <div id="message"></div>
+    </div>
+
+    <div class="container">
+      <h2>Uploaded Folders</h2>
+      <ul id="folderList"></ul>
+    </div>
+
+    <div class="container" id="filesInFolderContainer" style="display: none">
+      <h2 id="filesInFolderHeader">Files in Folder:</h2>
+      <ul id="fileInFolderList"></ul>
+    </div>
+
+    <script>
+      async function uploadFiles() {
+        const folderNameInput = document.getElementById("folderName");
+        const fileInput1 = document.getElementById("fileInput1");
+        const fileInput2 = document.getElementById("fileInput2");
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = "";
+        messageDiv.className = "";
+
+        if (!folderNameInput.value.trim()) {
+          messageDiv.textContent = "Please enter a folder name.";
+          messageDiv.className = "error";
+          return;
+        }
+
+        if (fileInput1.files.length === 0 || fileInput2.files.length === 0) {
+          messageDiv.textContent = "Please select both files to upload.";
+          messageDiv.className = "error";
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("folderName", folderNameInput.value.trim());
+        formData.append("file1", fileInput1.files[0]);
+        formData.append("file2", fileInput2.files[0]);
+
+        try {
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.text();
+          if (response.ok) {
+            messageDiv.textContent = result;
+            messageDiv.className = "success";
+            folderNameInput.value = "";
+            fileInput1.value = "";
+            fileInput2.value = "";
+            loadFolders();
+          } else {
+            messageDiv.textContent = `Error: ${result}`;
+            messageDiv.className = "error";
+          }
+        } catch (error) {
+          console.error("Upload error:", error);
+          messageDiv.textContent = "Upload failed. See console for details.";
+          messageDiv.className = "error";
+        }
+      }
+
+      async function loadFolders() {
+        const folderList = document.getElementById("folderList");
+        folderList.innerHTML = "";
+        document.getElementById("filesInFolderContainer").style.display =
+          "none";
+
+        try {
+          const response = await fetch("/files");
+          const folders = await response.json();
+          if (folders.length === 0) {
+            const listItem = document.createElement("li");
+            listItem.textContent = "No folders uploaded yet.";
+            folderList.appendChild(listItem);
+          } else {
+            folders.forEach((folder) => {
+              const listItem = document.createElement("li");
+              listItem.textContent = folder;
+              listItem.classList.add("folder-header");
+              listItem.onclick = () => loadFilesInFolder(folder);
+              folderList.appendChild(listItem);
+            });
+          }
+        } catch (error) {
+          console.error("Error loading folders:", error);
+          const listItem = document.createElement("li");
+          listItem.textContent = "Error loading folders.";
+          folderList.appendChild(listItem);
+        }
+      }
+
+      async function loadFilesInFolder(folderName) {
+        const fileInFolderList = document.getElementById("fileInFolderList");
+        const filesInFolderContainer = document.getElementById(
+          "filesInFolderContainer"
+        );
+        document.getElementById(
+          "filesInFolderHeader"
+        ).textContent = `Files in Folder: ${folderName}`;
+        fileInFolderList.innerHTML = "";
+        filesInFolderContainer.style.display = "block";
+
+        try {
+          const res = await fetch(`/files/${folderName}`);
+          if (!res.ok) throw new Error((await res.text()) || res.statusText);
+          const filesData = await res.json();
+
+          if (filesData.length === 0) {
+            const li = document.createElement("li");
+            li.textContent = "No files in this folder.";
+            fileInFolderList.appendChild(li);
+          } else {
+            filesData.forEach(({ file, js, originalContent, error }) => {
+              const li = document.createElement("li");
+              const ext = file.substring(file.lastIndexOf(".")).toLowerCase();
+
+              // filename
+              const nameDiv = document.createElement("div");
+              nameDiv.textContent = file;
+              nameDiv.style.fontWeight = "bold";
+              li.appendChild(nameDiv);
+
+              if (error) {
+                const errorDiv = document.createElement("div");
+                errorDiv.textContent = `⚠️ Error: ${error}`;
+                errorDiv.style.color = "red";
+                li.appendChild(errorDiv);
+              }
+
+              // Original TS/TSX content
+              if (originalContent) {
+                const origTitle = document.createElement("h4");
+                origTitle.textContent = "Original Content (.ts/.tsx):";
+                origTitle.style.marginTop = "10px";
+                origTitle.style.marginBottom = "5px";
+                li.appendChild(origTitle);
+
+                const preOrig = document.createElement("pre");
+                preOrig.textContent = originalContent;
+                preOrig.style.background = "#f0f0f0";
+                preOrig.style.padding = "8px";
+                preOrig.style.overflowX = "auto";
+                preOrig.style.maxHeight = "200px";
+                li.appendChild(preOrig);
+              } else if (ext === ".ts" || ext === ".tsx") {
+                const note = document.createElement("div");
+                note.textContent = "⚠️ Original content could not be loaded.";
+                li.appendChild(note);
+              }
+
+              // compiled JS chunk
+              if (js) {
+                const jsTitle = document.createElement("h4");
+                jsTitle.textContent = "Transpiled JavaScript:";
+                jsTitle.style.marginTop = "10px";
+                jsTitle.style.marginBottom = "5px";
+                li.appendChild(jsTitle);
+
+                const preJS = document.createElement("pre");
+                preJS.textContent = js;
+                preJS.style.background = "#fafafa";
+                preJS.style.padding = "8px";
+                preJS.style.overflowX = "auto";
+                preJS.style.maxHeight = "200px";
+                li.appendChild(preJS);
+              } else if (ext === ".ts" || ext === ".tsx") {
+                if (!error) {
+                  const note = document.createElement("div");
+                  note.textContent =
+                    "⚠️ Not a .ts/.tsx file or no JS chunk produced.";
+                  li.appendChild(note);
+                }
+              } else if (!originalContent) {
+                const note = document.createElement("div");
+                note.textContent = "⚠️ Could not load file content.";
+                li.appendChild(note);
+              }
+
+              fileInFolderList.appendChild(li);
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          const li = document.createElement("li");
+          li.textContent = err.message || "Error loading files.";
+          fileInFolderList.appendChild(li);
+        }
+      }
+
+      window.onload = loadFolders;
+    </script>
+  </body>
+</html>

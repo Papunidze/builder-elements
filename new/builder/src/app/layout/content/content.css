@@ -1,0 +1,29 @@
+.content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow: auto;
+  background: #fff;
+}
+
+.content pre {
+  background: #f3f3f3;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
+.content h1,
+.content h2,
+.content h3 {
+  margin-top: 1rem;
+}
+
+.content.error {
+  color: #c00;
+  font-weight: bold;
+}
