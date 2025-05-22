@@ -1,0 +1,19 @@
+.right-bar {
+  width: 320px;
+  padding: 1rem;
+  border-left: 1px solid #ddd;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.right-bar .error {
+  color: red;
+}
+
+.right-bar pre {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

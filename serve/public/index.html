@@ -75,18 +75,26 @@
   </head>
   <body>
     <div class="container">
-      <h1>Upload Two .ts or .tsx Files to a Folder</h1>
+      <h1>Upload a .tsx File and a .css File</h1>
+
       <div>
         <label for="folderName">Folder Name:</label>
         <input type="text" id="folderName" placeholder="Enter folder name" />
       </div>
       <div>
-        <label for="fileInput1">File 1:</label>
-        <input type="file" id="fileInput1" accept=".ts,.tsx" />
+        <label>TSX or TS files:</label>
+        <!-- allow multiple .tsx uploads -->
+        <input
+          type="file"
+          id="fileInputTS"
+          name="tsFiles"
+          accept=".tsx,.ts"
+          multiple
+        />
       </div>
       <div>
-        <label for="fileInput2">File 2:</label>
-        <input type="file" id="fileInput2" accept=".ts,.tsx" />
+        <label>CSS File:</label>
+        <input type="file" id="fileInputCSS" name="cssFile" accept=".css" />
       </div>
       <button onclick="uploadFiles()">Upload Files</button>
       <div id="message"></div>
@@ -105,8 +113,8 @@
     <script>
       async function uploadFiles() {
         const folderNameInput = document.getElementById("folderName");
-        const fileInput1 = document.getElementById("fileInput1");
-        const fileInput2 = document.getElementById("fileInput2");
+        const tsxInput = document.getElementById("fileInputTS");
+        const cssInput = document.getElementById("fileInputCSS");
         const messageDiv = document.getElementById("message");
         messageDiv.textContent = "";
         messageDiv.className = "";
@@ -116,31 +124,39 @@
           messageDiv.className = "error";
           return;
         }
-
-        if (fileInput1.files.length === 0 || fileInput2.files.length === 0) {
-          messageDiv.textContent = "Please select both files to upload.";
+        if (tsxInput.files.length === 0) {
+          messageDiv.textContent = "Please select both a .tsx and a .css file.";
+          messageDiv.className = "error";
+          return;
+        }
+        const tsxName = tsxInput.files[0].name.toLowerCase();
+        const cssName = cssInput.files[0].name.toLowerCase();
+        if (!tsxName.endsWith(".tsx") || !cssName.endsWith(".css")) {
+          messageDiv.textContent =
+            "Invalid file types. Please select a .tsx and a .css file.";
           messageDiv.className = "error";
           return;
         }
 
         const formData = new FormData();
         formData.append("folderName", folderNameInput.value.trim());
-        formData.append("file1", fileInput1.files[0]);
-        formData.append("file2", fileInput2.files[0]);
+        // change FormData append for TSX
+        for (let f of tsxInput.files) formData.append("tsFiles", f);
+        // keep CSS the same
+        formData.append("cssFile", cssInput.files[0]);
 
         try {
           const response = await fetch("/upload", {
             method: "POST",
             body: formData,
           });
-
           const result = await response.text();
           if (response.ok) {
             messageDiv.textContent = result;
             messageDiv.className = "success";
             folderNameInput.value = "";
-            fileInput1.value = "";
-            fileInput2.value = "";
+            tsxInput.value = "";
+            cssInput.value = "";
             loadFolders();
           } else {
             messageDiv.textContent = `Error: ${result}`;
@@ -204,74 +220,68 @@
             li.textContent = "No files in this folder.";
             fileInFolderList.appendChild(li);
           } else {
-            filesData.forEach(({ file, js, originalContent, error }) => {
-              const li = document.createElement("li");
-              const ext = file.substring(file.lastIndexOf(".")).toLowerCase();
+            filesData.forEach(
+              ({ file, js, originalContent, cssContent, error }) => {
+                const li = document.createElement("li");
+                const ext = file.substring(file.lastIndexOf(".")).toLowerCase();
 
-              // filename
-              const nameDiv = document.createElement("div");
-              nameDiv.textContent = file;
-              nameDiv.style.fontWeight = "bold";
-              li.appendChild(nameDiv);
+                // filename
+                const nameDiv = document.createElement("div");
+                nameDiv.textContent = file;
+                nameDiv.style.fontWeight = "bold";
+                li.appendChild(nameDiv);
 
-              if (error) {
-                const errorDiv = document.createElement("div");
-                errorDiv.textContent = `⚠️ Error: ${error}`;
-                errorDiv.style.color = "red";
-                li.appendChild(errorDiv);
-              }
-
-              // Original TS/TSX content
-              if (originalContent) {
-                const origTitle = document.createElement("h4");
-                origTitle.textContent = "Original Content (.ts/.tsx):";
-                origTitle.style.marginTop = "10px";
-                origTitle.style.marginBottom = "5px";
-                li.appendChild(origTitle);
-
-                const preOrig = document.createElement("pre");
-                preOrig.textContent = originalContent;
-                preOrig.style.background = "#f0f0f0";
-                preOrig.style.padding = "8px";
-                preOrig.style.overflowX = "auto";
-                preOrig.style.maxHeight = "200px";
-                li.appendChild(preOrig);
-              } else if (ext === ".ts" || ext === ".tsx") {
-                const note = document.createElement("div");
-                note.textContent = "⚠️ Original content could not be loaded.";
-                li.appendChild(note);
-              }
-
-              // compiled JS chunk
-              if (js) {
-                const jsTitle = document.createElement("h4");
-                jsTitle.textContent = "Transpiled JavaScript:";
-                jsTitle.style.marginTop = "10px";
-                jsTitle.style.marginBottom = "5px";
-                li.appendChild(jsTitle);
-
-                const preJS = document.createElement("pre");
-                preJS.textContent = js;
-                preJS.style.background = "#fafafa";
-                preJS.style.padding = "8px";
-                preJS.style.overflowX = "auto";
-                preJS.style.maxHeight = "200px";
-                li.appendChild(preJS);
-              } else if (ext === ".ts" || ext === ".tsx") {
-                if (!error) {
-                  const note = document.createElement("div");
-                  note.textContent =
-                    "⚠️ Not a .ts/.tsx file or no JS chunk produced.";
-                  li.appendChild(note);
+                if (error) {
+                  const errorDiv = document.createElement("div");
+                  errorDiv.textContent = `⚠️ Error: ${error}`;
+                  errorDiv.style.color = "red";
+                  li.appendChild(errorDiv);
                 }
-              } else if (!originalContent) {
-                const note = document.createElement("div");
-                note.textContent = "⚠️ Could not load file content.";
-                li.appendChild(note);
-              }
 
-              fileInFolderList.appendChild(li);
-            });
+                // .tsx
+                if (ext === ".tsx") {
+                  if (originalContent) {
+                    const origTitle = document.createElement("h4");
+                    origTitle.textContent = "Original TSX Content:";
+                    li.appendChild(origTitle);
+                    const preOrig = document.createElement("pre");
+                    preOrig.textContent = originalContent;
+                    preOrig.style.background = "#f0f0f0";
+                    preOrig.style.padding = "8px";
+                    preOrig.style.overflowX = "auto";
+                    preOrig.style.maxHeight = "200px";
+                    li.appendChild(preOrig);
+                  }
+                  if (js) {
+                    const jsTitle = document.createElement("h4");
+                    jsTitle.textContent = "Transpiled JavaScript:";
+                    li.appendChild(jsTitle);
+                    const preJS = document.createElement("pre");
+                    preJS.textContent = js;
+                    preJS.style.background = "#fafafa";
+                    preJS.style.padding = "8px";
+                    preJS.style.overflowX = "auto";
+                    preJS.style.maxHeight = "200px";
+                    li.appendChild(preJS);
+                  }
+                }
+                // .css
+                else if (ext === ".css") {
+                  const cssTitle = document.createElement("h4");
+                  cssTitle.textContent = "CSS File Content:";
+                  li.appendChild(cssTitle);
+                  const preCSS = document.createElement("pre");
+                  preCSS.textContent = cssContent || "";
+                  preCSS.style.background = "#f0f0f0";
+                  preCSS.style.padding = "8px";
+                  preCSS.style.overflowX = "auto";
+                  preCSS.style.maxHeight = "200px";
+                  li.appendChild(preCSS);
+                }
+
+                fileInFolderList.appendChild(li);
+              }
+            );
           }
         } catch (err) {
           console.error(err);

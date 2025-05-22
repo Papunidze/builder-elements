@@ -2,8 +2,8 @@ const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-const esbuild = require("esbuild"); // ← add
-const cors = require("cors"); // Add cors require
+const esbuild = require("esbuild");
+const cors = require("cors");
 
 const app = express();
 const port = 3000;
@@ -11,10 +11,10 @@ const port = 3000;
 // CORS Configuration
 const corsOptions = {
   origin: "http://localhost:5173",
-  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+  optionsSuccessStatus: 200,
 };
 
-app.use(cors(corsOptions)); // Use cors middleware
+app.use(cors(corsOptions));
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -26,27 +26,21 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
+    cb(null, file.originalname);
   },
 });
 
-const upload = multer({
-  storage: storage,
-  fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype === "video/mp2t" ||
-      file.originalname.endsWith(".ts") ||
-      file.originalname.endsWith(".tsx")
-    ) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error("Invalid file type. Only .ts and .tsx files are allowed."),
-        false
-      );
-    }
-  },
-});
+// 1) allow .ts in your filter
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext === ".tsx" || ext === ".ts" || ext === ".css") {
+    cb(null, true);
+  } else {
+    cb(new Error("Only .tsx, .ts and .css allowed"), false);
+  }
+};
+
+const upload = multer({ storage, fileFilter });
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
@@ -54,17 +48,17 @@ app.use(express.urlencoded({ extended: true }));
 app.post(
   "/upload",
   upload.fields([
-    { name: "file1", maxCount: 1 },
-    { name: "file2", maxCount: 1 },
+    { name: "tsFiles", maxCount: 10 },
+    { name: "cssFile", maxCount: 1 },
   ]),
   (req, res) => {
-    if (!req.files || !req.files.file1 || !req.files.file2) {
-      return res.status(400).send("Both files are required.");
+    if (!req.files?.tsFiles?.length || !req.files?.cssFile) {
+      return res.status(400).send("Need at least one .tsx and one .css file");
     }
     if (!req.body.folderName) {
       return res.status(400).send("Folder name is required.");
     }
-    res.send(`Files uploaded successfully to folder: ${req.body.folderName}`);
+    res.send(`Uploaded to folder ${req.body.folderName}`);
   }
 );
 
@@ -85,87 +79,58 @@ app.get("/files", (req, res) => {
   });
 });
 
+// 2) keep only index.tsx, *.css and *.ts when reading back
 app.get("/files/:folderName", async (req, res) => {
-  const folderName = req.params.folderName;
-  const dir = path.join(__dirname, "uploads", folderName);
-  console.log(`Reading files from directory: ${dir}`);
-
+  const dir = path.join(__dirname, "uploads", req.params.folderName);
   try {
-    const files = await fs.promises.readdir(dir);
-    console.log(`Files found in ${folderName}:`, files);
+    const all = await fs.promises.readdir(dir);
+    const filtered = all.filter(
+      (f) =>
+        f === "index.tsx" ||
+        path.extname(f).toLowerCase() === ".css" ||
+        path.extname(f).toLowerCase() === ".ts"
+    );
 
     const compiled = await Promise.all(
-      files.map(async (file) => {
+      filtered.map(async (file) => {
         const ext = path.extname(file).toLowerCase();
-        const filePath = path.join(dir, file);
-        console.log(`Processing file: ${filePath}, extension: ${ext}`);
+        const full = path.join(dir, file);
+        const src = await fs.promises.readFile(full, "utf-8");
 
-        let originalFileContent = null;
-        try {
-          originalFileContent = await fs.promises.readFile(filePath, "utf-8");
-        } catch (readError) {
-          console.error(`Error reading original file ${filePath}:`, readError);
+        if (ext === ".tsx") {
+          const out = await esbuild.build({
+            entryPoints: [full],
+            bundle: true,
+            write: false,
+            format: "cjs",
+            loader: { ".tsx": "tsx", ".css": "text" },
+            external: ["react", "react-dom", "react/jsx-runtime"],
+          });
+          return {
+            file,
+            // originalContent: src,
+            js: out.outputFiles[0].text,
+          };
+        } else if (ext === ".css") {
+          return {
+            file,
+            cssContent: src,
+          };
+        } else if (ext === ".ts") {
+          return {
+            file,
+            tsContent: src, // new for your settings.ts
+          };
         }
-
-        if (ext === ".ts" || ext === ".tsx") {
-          try {
-            console.log(`Attempting to build: ${filePath}`);
-            const result = await esbuild.build({
-              entryPoints: [filePath],
-              bundle: true,
-              write: false,
-              format: "cjs",
-              sourcemap: false,
-              loader: {
-                ".tsx": "tsx",
-                ".ts": "ts",
-                ".scss": "text",
-              },
-              external: ["react", "react-dom", "react/jsx-runtime"],
-            });
-            console.log(
-              `Build successful for: ${filePath}, output files:`,
-              result.outputFiles.length
-            );
-            if (result.outputFiles && result.outputFiles.length > 0) {
-              return {
-                file,
-                js: result.outputFiles[0].text,
-                originalContent: originalFileContent,
-              };
-            } else {
-              console.error(`esbuild returned no output files for ${filePath}`);
-              return {
-                file,
-                js: null,
-                originalContent: originalFileContent,
-                error: "esbuild no output",
-              };
-            }
-          } catch (buildError) {
-            console.error(`esbuild error for ${filePath}:`, buildError);
-            return {
-              file,
-              js: null,
-              originalContent: originalFileContent,
-              error: buildError.message,
-            };
-          }
-        }
-
-        console.log(`Skipping non-TS/TSX file transpilation: ${filePath}`);
-        return { file, js: null, originalContent: originalFileContent };
+        return { file };
       })
     );
+
     res.json(compiled);
   } catch (err) {
-    console.error(`Error in /files/:folderName route for ${folderName}:`, err);
-    if (err.code === "ENOENT") {
-      return res.status(404).send("Folder not found.");
-    }
-    res
-      .status(500)
-      .send(`Unable to retrieve or compile files. Error: ${err.message}`);
+    return err.code === "ENOENT"
+      ? res.status(404).send("Folder not found")
+      : res.status(500).send(err.message);
   }
 });
 
