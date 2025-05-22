@@ -117,9 +117,22 @@ app.get("/files/:folderName", async (req, res) => {
             cssContent: src,
           };
         } else if (ext === ".ts") {
+          const out = await esbuild.build({
+            entryPoints: [full],
+            bundle: true,
+            write: false,
+            format: "cjs",
+            loader: { ".ts": "ts", ".css": "text" },
+            external: [
+              "react",
+              "react-dom",
+              "react/jsx-runtime",
+              "builder-settings-types",
+            ],
+          });
           return {
             file,
-            tsContent: src, // new for your settings.ts
+            tsContent: out.outputFiles[0].text,
           };
         }
         return { file };

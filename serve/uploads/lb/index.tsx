@@ -16,15 +16,15 @@ const Leaderboard: React.FC = () => {
   ];
 
   return (
-    <div className="leaderboard">
+    <div className="leaderboard2">
       <Button />
-      <h2 className="leaderboard-title">Leaderboard</h2>
-      <ul className="leaderboard-list">
+      <h2 className="leaderboard-title2">Leaderboard</h2>
+      <ul className="leaderboard-list2">
         {leaders.map((leader, idx) => (
-          <li key={leader.name} className="leaderboard-item">
-            <span className="leaderboard-rank">#{idx + 1}</span>
-            <span className="leaderboard-name">{leader.name}</span>
-            <span className="leaderboard-score">{leader.score}</span>
+          <li key={leader.name} className="leaderboard-item2">
+            <span className="leaderboard-rank2">#{idx + 1}</span>
+            <span className="leaderboard-name2">{leader.name}</span>
+            <span className="leaderboard-score2">{leader.score}</span>
           </li>
         ))}
       </ul>

@@ -1,11 +1,23 @@
-import { ColorSetting, SettingGroup } from "builder-settings-types";
+import {
+  BorderSettingSet,
+  ColorSetting,
+  OpacitySetting,
+  SettingGroup,
+  WidthSetting,
+} from "builder-settings-types";
 
 export const oa_settings = new SettingGroup({
-  title: "Settings",
+  main: true,
+  title: "Leaderboard",
   settings: {
-    color: ColorSetting({
-      defaultValue: "#000000",
-      title: "Color",
+    background: new SettingGroup({
+      title: "Background Settings",
+      settings: {
+        color: new ColorSetting({
+          default: "255,255,255",
+          title: "background",
+        }),
+      },
     }),
   },
 });

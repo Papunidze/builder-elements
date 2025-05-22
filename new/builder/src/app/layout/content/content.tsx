@@ -5,16 +5,22 @@ import "./content.css";
 interface ContentProps {
   fileNames: string[];
   onActivate?: (fileName: string) => void;
+  activeItem?: string;
 }
 
 interface LoadedItem {
   fileName: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Comp: React.ComponentType<any> | null;
   loading: boolean;
   error: string;
 }
 
-const Content: React.FC<ContentProps> = ({ fileNames, onActivate }) => {
+const Content: React.FC<ContentProps> = ({
+  fileNames,
+  onActivate,
+  activeItem,
+}) => {
   const [items, setItems] = useState<LoadedItem[]>([]);
 
   useEffect(() => {
@@ -33,8 +39,14 @@ const Content: React.FC<ContentProps> = ({ fileNames, onActivate }) => {
       })
       .then(
         (data: Array<{ file: string; js?: string; cssContent?: string }>) => {
-          const jsFile = data.find((f) => typeof f.js === "string")!;
-          const module = { exports: {} as any };
+          const jsFile = data.find((f) => typeof f.js === "string");
+          if (!jsFile || typeof jsFile.js !== "string") {
+            throw new Error(
+              `JavaScript content not found or invalid for ${latest}`
+            );
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const module = { exports: {} as any }; // Keeping as any due to dynamic assignment
           const require = (name: string) =>
             name === "react"
               ? React
@@ -46,7 +58,9 @@ const Content: React.FC<ContentProps> = ({ fileNames, onActivate }) => {
             module,
             module.exports
           );
-          const Comp = module.exports.default || module.exports;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const Comp = (module.exports.default ||
+            module.exports) as React.ComponentType<any>;
           const cssFile = data.find((f) => f.cssContent);
           if (cssFile) {
             const tag = document.createElement("style");
@@ -61,6 +75,7 @@ const Content: React.FC<ContentProps> = ({ fileNames, onActivate }) => {
           );
         }
       )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .catch((e: any) =>
         setItems((prev) =>
           prev.map((it) =>
@@ -87,7 +102,10 @@ const Content: React.FC<ContentProps> = ({ fileNames, onActivate }) => {
           <div
             key={fileName}
             onClick={() => onActivate?.(fileName)}
-            style={{ cursor: "pointer", marginBottom: "1rem" }}
+            style={{
+              cursor: "pointer",
+              marginBottom: "1rem",
+            }}
           >
             <ErrorBoundary fallback={<div>Render failed for {fileName}.</div>}>
               <Comp message={`Hello from ${fileName}!`} />

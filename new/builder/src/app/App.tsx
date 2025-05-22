@@ -21,7 +21,11 @@ const App: React.FC = () => {
     <div className="app-container">
       <LeftBar onSelect={handleSelect} />
       <div className="elements">
-        <Content fileNames={selectedFolders} onActivate={handleActivate} />
+        <Content
+          fileNames={selectedFolders}
+          onActivate={handleActivate}
+          activeItem={activeFolder}
+        />
       </div>
       <RightBar folderName={activeFolder} />
     </div>
