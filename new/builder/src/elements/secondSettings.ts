@@ -6,7 +6,7 @@ import {
   WidthSetting,
 } from "builder-settings-types";
 
-export const oa_settings = new SettingGroup({
+export const oa_settings_seccond = new SettingGroup({
   main: true,
   title: "Leaderboard",
   settings: {
@@ -17,6 +17,14 @@ export const oa_settings = new SettingGroup({
           default: "255,255,255",
           title: "background",
         }),
+        width: new WidthSetting({
+          default: 860,
+          mobile: 370,
+          title: "width",
+        }),
+        border: new BorderSettingSet({ collapsed: true }),
+        borders: new BorderSettingSet({ collapsed: true }),
+        opacit: new OpacitySetting({ default: 0.5, title: "opacity" }),
       },
     }),
   },

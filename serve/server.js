@@ -51,14 +51,65 @@ app.post(
     { name: "tsFiles", maxCount: 10 },
     { name: "cssFile", maxCount: 1 },
   ]),
-  (req, res) => {
+  async (req, res) => {
     if (!req.files?.tsFiles?.length || !req.files?.cssFile) {
       return res.status(400).send("Need at least one .tsx and one .css file");
     }
-    if (!req.body.folderName) {
+    const folderName = req.body.folderName;
+    if (!folderName) {
       return res.status(400).send("Folder name is required.");
     }
-    res.send(`Uploaded to folder ${req.body.folderName}`);
+
+    const uniquePrefix = `${folderName}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+    const currentUploadPath = path.join(__dirname, "uploads", folderName);
+
+    try {
+      // Process TSX files
+      if (req.files.tsFiles && req.files.tsFiles.length > 0) {
+        for (const file of req.files.tsFiles) {
+          const filePath = file.path;
+          let content = await fs.promises.readFile(filePath, "utf-8");
+
+          if (file.originalname.toLowerCase() === 'settings.ts') {
+            // Regex to find 'export const someName = new SettingGroup('
+            // Captures 'someName'
+            content = content.replace(
+              /(export\s+const\s+)([A-Za-z0-9_]+)(\s*=\s*new\s+SettingGroup\()/,
+              `$1${uniquePrefix}_$2$3` // Prepend uniquePrefix to the settings variable name
+            );
+          } else {
+            // Existing logic for .tsx files (className prefixing)
+            content = content.replace(
+              /className\s*=\s*['"]([A-Za-z0-9_-]+)['"]/g,
+              (match, className) => `className="${uniquePrefix}-${className}"`
+            );
+          }
+          await fs.promises.writeFile(filePath, content, "utf-8");
+        }
+      }
+
+      // Process CSS file
+      if (req.files.cssFile && req.files.cssFile.length > 0) {
+        const cssFile = req.files.cssFile[0];
+        const cssFilePath = cssFile.path;
+        let cssContent = await fs.promises.readFile(cssFilePath, "utf-8");
+        cssContent = cssContent.replace(
+          /\.([A-Za-z_-][A-Za-z0-9_-]*)/g,
+          (match, className) => `.${uniquePrefix}-${className}`
+        );
+        await fs.promises.writeFile(cssFilePath, cssContent, "utf-8");
+      }
+
+      // Save the prefix
+      const prefixFilePath = path.join(currentUploadPath, "prefix.txt");
+      await fs.promises.writeFile(prefixFilePath, uniquePrefix, "utf-8");
+      
+      res.send(`Uploaded and processed files for folder ${folderName} with prefix ${uniquePrefix}`);
+
+    } catch (error) {
+      console.error("Error processing uploaded files:", error);
+      return res.status(500).send("Error processing uploaded files.");
+    }
   }
 );
 
@@ -79,20 +130,38 @@ app.get("/files", (req, res) => {
   });
 });
 
-// 2) keep only index.tsx, *.css and *.ts when reading back
 app.get("/files/:folderName", async (req, res) => {
   const dir = path.join(__dirname, "uploads", req.params.folderName);
+
+  // Read the stored prefix
+  let storedPrefix = "";
+  const prefixFilePath = path.join(dir, 'prefix.txt');
+  try {
+    storedPrefix = (await fs.promises.readFile(prefixFilePath, "utf-8")).trim();
+  } catch (e) {
+    // Log error if prefix file is not found, but proceed. Client might handle missing prefix.
+    console.warn(`prefix.txt not found in ${dir}. Components might not render styles correctly if they rely on this prefix.`);
+  }
+  
   try {
     const all = await fs.promises.readdir(dir);
-    const filtered = all.filter(
-      (f) =>
-        f === "index.tsx" ||
-        path.extname(f).toLowerCase() === ".css" ||
-        path.extname(f).toLowerCase() === ".ts"
+    const filtered = all.filter((f) =>
+      [".css", ".ts", ".tsx"].includes(path.extname(f).toLowerCase())
     );
 
+    // only keep index.tsx (plus any non‐tsx assets) when it exists
+    let finalFiltered = filtered;
+    const tsxOnly = filtered.filter(
+      (f) => path.extname(f).toLowerCase() === ".tsx"
+    );
+    if (tsxOnly.includes("index.tsx")) {
+      finalFiltered = filtered.filter(
+        (f) => path.extname(f).toLowerCase() !== ".tsx" || f === "index.tsx"
+      );
+    }
+
     const compiled = await Promise.all(
-      filtered.map(async (file) => {
+      finalFiltered.map(async (file) => {
         const ext = path.extname(file).toLowerCase();
         const full = path.join(dir, file);
         const src = await fs.promises.readFile(full, "utf-8");
@@ -106,17 +175,17 @@ app.get("/files/:folderName", async (req, res) => {
             loader: { ".tsx": "tsx", ".css": "text" },
             external: ["react", "react-dom", "react/jsx-runtime"],
           });
-          return {
-            file,
-            // originalContent: src,
-            js: out.outputFiles[0].text,
-          };
-        } else if (ext === ".css") {
-          return {
-            file,
-            cssContent: src,
-          };
-        } else if (ext === ".ts") {
+
+          const js = out.outputFiles[0].text;
+          return { file, js, prefix: storedPrefix };
+        }
+
+        if (ext === ".css") {
+          const cssContent = src;
+          return { file, cssContent, prefix: storedPrefix };
+        }
+
+        if (ext === ".ts") {
           const out = await esbuild.build({
             entryPoints: [full],
             bundle: true,
@@ -130,11 +199,20 @@ app.get("/files/:folderName", async (req, res) => {
               "builder-settings-types",
             ],
           });
-          return {
-            file,
-            tsContent: out.outputFiles[0].text,
-          };
+          // For settings.ts, we need to provide the modified name
+          let settingsObjectName = null;
+          if (file.toLowerCase() === 'settings.ts') {
+            // The prefix is already part of the content, we need to extract the name
+            // This assumes the prefix.txt is reliable and settings.ts was processed
+            const settingsContent = src; // src is already the content of the (potentially modified) settings.ts
+            const match = settingsContent.match(/export\s+const\s+([A-Za-z0-9_]+_settings[A-Za-z0-9_]*)\s*=\s*new\s+SettingGroup\(/);
+            if (match && match[1]) {
+              settingsObjectName = match[1];
+            }
+          }
+          return { file, tsContent: out.outputFiles[0].text, settingsObjectName, prefix: storedPrefix };
         }
+
         return { file };
       })
     );

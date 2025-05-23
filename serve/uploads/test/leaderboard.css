@@ -1,10 +1,5 @@
-.btn {
-  width: 200px;
-  height: 200px;
-  color: white;
-  background: black;
-}
-.leaderboard {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard {
+  background-color: var(--primary);
   max-width: 360px;
   margin: 0 auto;
   background: #fff;
@@ -14,7 +9,7 @@
   overflow: hidden;
 }
 
-.leaderboard-title {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-title {
   margin: 0;
   padding: 16px;
   background: linear-gradient(90deg, #007bff, #0056b3);
@@ -23,13 +18,13 @@
   text-align: center;
 }
 
-.leaderboard-list {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.leaderboard-item {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-item {
   display: flex;
   align-items: center;
   padding: 12px 16px;
@@ -37,29 +32,29 @@
   transition: background 0.2s;
 }
 
-.leaderboard-item:hover {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-item:hover {
   background: #f9f9f9;
 }
 
-.leaderboard-rank {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-rank {
   flex: 0 0 32px;
   font-weight: bold;
   color: #555;
 }
 
-.leaderboard-name {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-name {
   flex: 1;
   color: #333;
   padding: 0 8px;
 }
 
-.leaderboard-score {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-score {
   flex: 0 0 48px;
   text-align: right;
   font-weight: bold;
   color: #007bff;
 }
 
-.leaderboard-item:last-child {
+.test_mb0iw43n_i4nvm-bobs_mb0gvgim_g0eoz-leaderboard-item:last-child {
   border-bottom: none;
 }

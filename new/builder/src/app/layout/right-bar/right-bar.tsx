@@ -10,30 +10,36 @@ import {
 
 interface RightBarProps {
   folderName: string;
+  onStyleChange?: (styles: any) => void;
+  initialSettings?: any;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SettingsObjectType = Record<string, any>;
 
-const RightBar: React.FC<RightBarProps> = ({ folderName }) => {
+// cache setting objects per folder
+const settingsCache: Record<string, any> = {};
+
+const RightBar: React.FC<RightBarProps> = ({
+  folderName,
+  onStyleChange,
+  initialSettings,
+}) => {
   const [error, setError] = useState("");
   const settingsHost = useRef<HTMLDivElement>(null);
   const [loadedSettings, setLoadedSettings] =
     useState<SettingsObjectType | null>(null);
 
   useEffect(() => {
-    if (settingsHost.current && loadedSettings && loadedSettings.draw) {
-      const el = loadedSettings.draw();
-      settingsHost.current.innerHTML = "";
-      settingsHost.current.appendChild(el);
-    }
-  }, [loadedSettings]);
-
-  useEffect(() => {
     if (!folderName) {
       setLoadedSettings(null);
       setError("");
       if (settingsHost.current) settingsHost.current.innerHTML = "";
+      return;
+    }
+    // if previously loaded, reuse
+    if (settingsCache[folderName]) {
+      setLoadedSettings(settingsCache[folderName]);
       return;
     }
     setError("");
@@ -51,15 +57,16 @@ const RightBar: React.FC<RightBarProps> = ({ folderName }) => {
             file: string;
             tsContent?: string;
             originalContent?: string;
+            settingsObjectName?: string;
           }>
         ) => {
           const settingsFile = data.find((f) => f.file === "settings.ts");
           const jsContent = settingsFile?.tsContent;
+
           if (!jsContent) {
             throw new Error("No compiled tsContent for settings.ts available");
           }
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const module = { exports: {} as Record<string, any> };
           const requireFunc = (name: string) => {
             if (name === "builder-settings-types") {
@@ -71,7 +78,7 @@ const RightBar: React.FC<RightBarProps> = ({ folderName }) => {
                 OpacitySetting,
               };
             }
-            throw new Error(`Cannot find module '''${name}'''`);
+            throw new Error(`Cannot find module '${name}'`);
           };
 
           new Function("require", "module", "exports", jsContent)(
@@ -79,23 +86,41 @@ const RightBar: React.FC<RightBarProps> = ({ folderName }) => {
             module,
             module.exports
           );
-
-          const settingsObject = module.exports.oa_settings;
+          const objectname = settingsFile?.settingsObjectName;
+          const settingsObject = module.exports[objectname || "oa_settings"];
           if (!settingsObject) {
             throw new Error(
-              "'''oa_settings''' not found in the compiled settings.ts"
+              "'oa_settings' not found in the compiled settings.ts"
             );
           }
+          // cache and set
+          settingsCache[folderName] = settingsObject;
           setLoadedSettings(settingsObject);
         }
       )
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .catch((e: any) => {
         console.error("Error loading or processing settings:", e);
         setError(e.message);
         setLoadedSettings(null);
       });
   }, [folderName]);
+
+  useEffect(() => {
+    if (!loadedSettings || !settingsHost.current) return;
+    // apply any saved values
+    if (initialSettings && typeof loadedSettings.setValue === "function") {
+      loadedSettings.setValue(initialSettings);
+    }
+    // draw the controls
+    const el = loadedSettings.draw();
+    settingsHost.current.innerHTML = "";
+    settingsHost.current.appendChild(el);
+    // subscribe to changes
+    loadedSettings.setOnChange((value: any) => {
+      if (onStyleChange) onStyleChange(value);
+    });
+  }, [loadedSettings, initialSettings, onStyleChange]);
+
   return (
     <div className="right-bar">
       <div ref={settingsHost} />

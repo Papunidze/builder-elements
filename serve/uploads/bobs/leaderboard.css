@@ -1,14 +1,15 @@
-.leaderboard2 {
+.bobs_mb0gvgim_g0eoz-leaderboard {
+  background-color: var(--primary);
   max-width: 360px;
   margin: 0 auto;
-  background: var(--primary);
+  background: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   font-family: sans-serif;
   overflow: hidden;
 }
 
-.leaderboard-title2 {
+.bobs_mb0gvgim_g0eoz-leaderboard-title {
   margin: 0;
   padding: 16px;
   background: linear-gradient(90deg, #007bff, #0056b3);
@@ -17,13 +18,13 @@
   text-align: center;
 }
 
-.leaderboard-list2 {
+.bobs_mb0gvgim_g0eoz-leaderboard-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.leaderboard-item2 {
+.bobs_mb0gvgim_g0eoz-leaderboard-item {
   display: flex;
   align-items: center;
   padding: 12px 16px;
@@ -31,29 +32,29 @@
   transition: background 0.2s;
 }
 
-.leaderboard-item2:hover {
+.bobs_mb0gvgim_g0eoz-leaderboard-item:hover {
   background: #f9f9f9;
 }
 
-.leaderboard-rank2 {
+.bobs_mb0gvgim_g0eoz-leaderboard-rank {
   flex: 0 0 32px;
   font-weight: bold;
   color: #555;
 }
 
-.leaderboard-name2 {
+.bobs_mb0gvgim_g0eoz-leaderboard-name {
   flex: 1;
   color: #333;
   padding: 0 8px;
 }
 
-.leaderboard-score2 {
+.bobs_mb0gvgim_g0eoz-leaderboard-score {
   flex: 0 0 48px;
   text-align: right;
   font-weight: bold;
   color: #007bff;
 }
 
-.leaderboard-item:last-child {
+.bobs_mb0gvgim_g0eoz-leaderboard-item:last-child {
   border-bottom: none;
 }
